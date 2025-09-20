@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "node test-complete.js",
+    "test:batch": "node test-batch.js",
+    "test:env": "node check-environment.js"
   },
   "keywords": [],
   "author": "",
