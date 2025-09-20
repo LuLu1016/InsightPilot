@@ -1,76 +1,149 @@
 # InsightPilot
 
-一个基于 AI 智能体的创新项目，集成了多个先进的服务来提供智能分析和决策能力。
+InsightPilot is an autonomous agentic system that transforms social data into actionable user intelligence. By orchestrating multiple specialized AI agents through Coral Protocol, we automate the entire user research workflow - from analyzing Twitter profiles to generating personalized interview questions and creating shareable insight assets.
 
-## 快速开始
+## 🚀 Features
 
-### 环境要求
-- Node.js 16+ 
-- npm 或 yarn
+- 🤖 **Multi-Agent Orchestration**: Coral Protocol coordinates specialized AI agents
+- 🧠 **Intelligent Analysis**: Mistral AI powers user persona generation and interview questions
+- 🎤 **Voice Synthesis**: ElevenLabs integration for audio interview questions
+- 🪙 **Web3 Integration**: Crossmint NFT minting for shareable insight assets
+- 📊 **Batch Analysis**: Serial user interviews with learning accumulation
+- 🎯 **Personalized Questions**: Dynamic question generation based on user profiles and historical insights
 
-### 安装依赖
+## 🏗️ Architecture
+
+### Core Components
+- **Twitter Agent**: Social media data analysis
+- **Mistral Agent**: AI-powered persona and question generation
+- **ProductExpert Agent**: Simulated user interviews and strategic advice
+- **ElevenLabs Agent**: Intelligent voice synthesis
+- **Crossmint Agent**: NFT asset creation
+- **Coral Agent**: Multi-agent coordination
+
+### Technology Stack
+- **Backend**: Node.js + Express.js
+- **Frontend**: Lovable.dev platform
+- **AI Services**: Mistral AI, ElevenLabs, Coral Protocol
+- **Web3**: Crossmint API
+- **Deployment**: Railway (backend), Vercel (frontend)
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 16+
+- npm or yarn
+- API keys for Mistral AI, ElevenLabs, Crossmint
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/LuLu1016/InsightPilot.git
+   cd InsightPilot
+   ```
+
+2. **Install dependencies**
+   ```bash
+   cd backend
+   npm install
+   ```
+
+3. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
+
+4. **Start the development server**
+   ```bash
+   npm start
+   ```
+
+The server will start at `http://localhost:3001`
+
+## 📡 API Endpoints
+
+### Single User Analysis
+```bash
+POST /api/analyze
+{
+  "x_username": "username",
+  "product_description": "Your product description"
+}
+```
+
+### Batch User Analysis
+```bash
+POST /api/batch-analyze
+{
+  "usernames": ["user1", "user2", "user3"],
+  "product_description": "Your product description"
+}
+```
+
+### Health Check
+```bash
+GET /api/health
+```
+
+## 🧪 Testing
+
+Run the complete test suite:
 ```bash
 cd backend
-npm install
+node test-complete.js
 ```
 
-### 配置环境变量
-复制 `.env.example` 到 `.env` 并填入您的 API 密钥：
+Test batch analysis functionality:
 ```bash
-cp .env.example .env
+node test-batch.js
 ```
 
-### 启动开发服务器
-```bash
-npm run dev
-```
-
-服务器将在 `http://localhost:3001` 启动。
-
-## 项目特性
-
-- 🤖 **AI 智能体**: 基于 Coral Protocol 的智能体协作
-- 🧠 **Mistral AI**: 核心 AI 大脑，提供智能分析
-- 🎤 **语音合成**: ElevenLabs 集成，提供语音交互
-- 🪙 **Web3 集成**: Crossmint 支持 NFT 和区块链功能
-- 🌐 **RESTful API**: 标准化的 HTTP API 接口
-
-## 技术栈
-
-- **后端**: Node.js + Express.js
-- **前端**: Lovable.dev 平台
-- **AI 服务**: Mistral AI, ElevenLabs, Coral Protocol
-- **Web3**: Crossmint API
-
-## 项目结构
+## 📁 Project Structure
 
 ```
 insightpilot/
-├── backend/          # 后端服务
-├── frontend/         # 前端工作区
-├── docs/            # 项目文档
-└── README.md        # 项目说明
+├── backend/                 # Backend services
+│   ├── src/
+│   │   ├── agents/         # AI agent modules
+│   │   ├── utils/          # Utility functions
+│   │   └── server.js       # Main server file
+│   ├── test-*.js           # Test scripts
+│   └── package.json
+├── frontend/               # Frontend workspace
+├── docs/                   # Documentation
+│   ├── API.md
+│   └── ARCHITECTURE.md
+└── README.md
 ```
 
-## API 文档
+## 🔧 Development
 
-详细的 API 文档请参考 [docs/API.md](docs/API.md)
+1. Ensure all API keys are configured in `.env`
+2. Start Coral Protocol server (port 8000) - optional
+3. Start backend development server (port 3001)
+4. Develop frontend application in Lovable.dev
 
-## 架构设计
+## 📚 Documentation
 
-项目架构详情请参考 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [API Documentation](docs/API.md)
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Deployment Guide](backend/DEPLOYMENT.md)
 
-## 开发指南
+## 🤝 Contributing
 
-1. 确保所有 API 密钥已正确配置
-2. 启动 Coral Protocol 服务器 (端口 8000)
-3. 启动后端开发服务器 (端口 3001)
-4. 在 Lovable.dev 中开发前端应用
+Contributions are welcome! Please feel free to submit issues and pull requests.
 
-## 贡献
+## 📄 License
 
-欢迎提交 Issue 和 Pull Request！
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 许可证
+## 🎯 Roadmap
 
-MIT License
+- [ ] Real-time Twitter API integration
+- [ ] Advanced Coral Protocol features
+- [ ] Frontend application development
+- [ ] Production deployment
+- [ ] Performance optimization
+- [ ] Additional AI agent integrations
