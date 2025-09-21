@@ -12,15 +12,15 @@ async function conductSimulatedInterview(personaSummary, productDescription) {
   try {
     console.log('[ProductExpert Agent] Starting simulated interview...');
 
-    // 1. 生成关键问题
+    // 1. 生成关键问题 (减少到3个问题)
     const questionsPrompt = `
-As a seasoned product expert, generate 3-5 of the most critical questions a business should ask this user profile about their product.
+As a seasoned product expert, generate exactly 3 of the most critical questions a business should ask this user profile about their product.
 
 User Profile: ${personaSummary}
 Product: ${productDescription}
 
-Output ONLY a JSON array of questions: ["question1", "question2", "question3", "question4", "question5"]
-    `;
+Output ONLY a JSON array of exactly 3 questions: ["question1", "question2", "question3"]
+`;
 
     const questionsArray = await analyzeWithMistral(questionsPrompt);
     const questions = JSON.parse(questionsArray);
@@ -40,8 +40,8 @@ Output ONLY a JSON array of questions: ["question1", "question2", "question3", "
           analysis: analysis.analysis
         });
 
-        // 短暂暂停，避免速率限制
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 短暂暂停，避免速率限制 (减少延迟)
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
         console.warn(`[ProductExpert Agent] Failed to simulate Q: "${question}"`, error.message);
         dialogues.push({
