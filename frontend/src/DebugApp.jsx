@@ -1,5 +1,6 @@
 // DebugApp.jsx - 调试版本
 import React, { useState } from 'react'
+import { postJSON } from './api/client'
 
 function DebugApp() {
   const [username, setUsername] = useState('')
@@ -23,24 +24,11 @@ function DebugApp() {
       addDebugInfo('📝 用户输入: ' + JSON.stringify({ username, productDescription }))
       
       addDebugInfo('🌐 开始API调用')
-      const response = await fetch('http://localhost:3001/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          x_username: username,
-          product_description: productDescription
-        })
+      const data = await postJSON('/analyze', {
+        x_username: username,
+        product_description: productDescription
       })
-      
-      addDebugInfo(`📡 API响应状态: ${response.status}`)
-      
-      if (!response.ok) {
-        throw new Error(`API调用失败: ${response.status}`)
-      }
-      
-      const data = await response.json()
+      addDebugInfo(`📡 API响应状态: 200`)
       addDebugInfo('📊 API响应成功: ' + JSON.stringify(data).substring(0, 100) + '...')
       
       setIsAnalyzing(false)

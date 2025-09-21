@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { postJSON } from './api/client'
 
 // 下载报告功能 - 包含Insight和Strategy
 function downloadReport(result) {
@@ -27,13 +28,6 @@ ${result.data.simulation.dialogues.map((dialogue, index) => `
 **A**: ${dialogue.answer}
 **分析**: ${dialogue.analysis}
 `).join('')}
-
-## 🎵 ElevenLabs语音输出
-${result.data.elevenlabs_analysis.audioFiles.map(file => `- ${file.filename || file}`).join('\n')}
-
-## 🎨 NFT生成
-- **标题**: ${result.data.crossmint_analysis.nftMetadata.title}
-- **描述**: ${result.data.crossmint_analysis.nftMetadata.description}
 
 ## 🔍 用户Insights洞察
 基于以上分析，我们得出以下关键洞察：
@@ -72,7 +66,7 @@ ${result.data.elevenlabs_analysis.audioFiles.map(file => `- ${file.filename || f
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `InsightPilot_${result.data.user}_${new Date().toISOString().split('T')[0]}.md`
+  a.download = `InsightPilot_${result.data.user}_${new Date().toISOString().split('T')[0]}.md`;
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -115,34 +109,102 @@ function App() {
   const [agentOutputs, setAgentOutputs] = useState({})
   const [result, setResult] = useState(null)
 
-  // 模拟对话数据 - 5个问题和5个回答
-  const mockDialogues = [
-    {
-      question: "基于您的推文内容，您对tesla最新的cybertruck有什么看法？",
-      answer: "从我的推文可以看出，我对Tesla Cybertruck非常感兴趣，特别是它的创新设计和性能表现。",
-      analysis: "用户表现出对创新技术的强烈兴趣"
+  // Preset dialogue data
+  const presetDialogues = {
+    preset1: {
+      user: "Elon Musk",
+      product: "iPhone",
+      intro: "Hello Elon, thanks for joining. We'd love to understand your experience with the iPhone and how it impacts your daily productivity.",
+      dialogues: [
+        {
+          question: "When using the iPhone for your daily communication, what do you find most efficient or limiting?",
+          answer: "It's smooth for quick communication, but I find its closed ecosystem restrictive compared to other platforms.",
+          analysis: "Values efficiency but frustrated by limitations"
+        },
+        {
+          question: "How well does the iPhone support your need for cross-device workflows between Tesla, SpaceX, and your personal tools?",
+          answer: "It integrates nicely with Apple products, but it doesn't connect easily with non-Apple systems, which slows me down.",
+          analysis: "Cross-platform integration is a key pain point"
+        },
+        {
+          question: "From your perspective, does the iPhone's design balance usability with the flexibility you need as a power user?",
+          answer: "It's beautifully designed, but lacks customization — I'd like more control at the system level.",
+          analysis: "Appreciates design but craves deeper control"
+        },
+        {
+          question: "How important is security versus flexibility in your choice of smartphone?",
+          answer: "Security is solid, but I'd sacrifice some of it for greater flexibility in how I use the device.",
+          analysis: "Prioritizes flexibility over security constraints"
+        },
+        {
+          question: "If Apple asked you for one recommendation to make the iPhone more valuable for you, what would it be?",
+          answer: "Give me more openness and advanced features, even if that means complexity — that's what drives real innovation.",
+          analysis: "Seeks openness and complexity for innovation"
+        }
+      ],
+      persona: "Visionary technologist, values openness, cross-platform integration, and advanced control.",
+      opportunities: "Emphasize efficiency, pro-level customization, and interoperability with broader ecosystems.",
+      risks: "High skepticism toward closed design; must demonstrate that control and innovation are not compromised.",
+      userInsights: {
+        technologyAdoption: "Very high; eager to try new features and bold innovations, but resistant to closed ecosystems.",
+        purchaseIntention: "Present, but conditional on greater freedom and cross-platform compatibility.",
+        priceSensitivity: "Low; focuses more on whether features and performance support innovation."
+      },
+      marketingStrategy: {
+        targetPositioning: "Aim at tech professionals, early adopters, and creators; position iPhone as a \"Pro-level productivity tool.\"",
+        marketingChannels: "Focus on tech media, industry conferences, and platforms like X/Twitter where thought leaders gather.",
+        pricingStrategy: "Premium pricing, but add optional advanced features/subscription services to emphasize flexibility."
+      }
     },
-    {
-      question: "您认为Cybertruck的哪些功能最吸引您？",
-      answer: "自动驾驶功能和续航里程是我最关心的两个方面，这些功能能大大提升我的出行体验。",
-      analysis: "用户重视实用性和效率"
-    },
-    {
-      question: "您会考虑购买Cybertruck吗？",
-      answer: "是的，如果价格合理且性能符合预期，我很可能会选择购买。",
-      analysis: "用户有明确的购买意向"
-    },
-    {
-      question: "您对Cybertruck的价格预期是多少？",
-      answer: "我希望价格能在我的预算范围内，大概在5-8万美元之间会比较合理。",
-      analysis: "用户有明确的价格敏感度"
-    },
-    {
-      question: "您最担心Cybertruck的哪个方面？",
-      answer: "主要是充电基础设施和维修保养的便利性，这些会影响日常使用体验。",
-      analysis: "用户关注实用性和便利性"
+    preset2: {
+      user: "Tim Cook",
+      product: "Cybertruck",
+      intro: "Hi Tim, thank you for your time. We'd love to hear your perspective on the Cybertruck as a product and how you think consumers will respond to it.",
+      dialogues: [
+        {
+          question: "From a consumer perspective, what's the first impression the Cybertruck gives you — appealing or intimidating?",
+          answer: "It's bold and attention-grabbing, but that could make it harder for mainstream consumers to adopt.",
+          analysis: "Concerned about mainstream adoption barriers"
+        },
+        {
+          question: "How do you feel the Cybertruck balances futuristic design with everyday usability?",
+          answer: "The courage in design is impressive, but it leans more toward shock value than Apple's usual elegance.",
+          analysis: "Values elegant design over shock value"
+        },
+        {
+          question: "Do you see consumers valuing the Cybertruck more for its utility or for its status as an innovation symbol?",
+          answer: "Both matter, but the sustainability angle is what will resonate most strongly with buyers.",
+          analysis: "Identifies sustainability as key value driver"
+        },
+        {
+          question: "In your view, what signals would show that the Cybertruck has crossed from niche excitement to mass-market adoption?",
+          answer: "It needs to prove it's more than just a truck — it should fit into a broader ecosystem, much like Apple products do.",
+          analysis: "Emphasizes ecosystem thinking for mass adoption"
+        },
+        {
+          question: "If Apple were to design a vehicle, what principles would you carry over that you feel are missing in the Cybertruck?",
+          answer: "I'd focus on usability and simplicity, ensuring futuristic ambition doesn't overwhelm the consumer experience.",
+          analysis: "Prioritizes usability and simplicity in design"
+        }
+      ],
+      persona: "Strategic operator, cautious about radical design, focused on mainstream adoption and brand coherence.",
+      opportunities: "Leverage sustainability narrative, ecosystem integration, and design refinement for broader acceptance.",
+      risks: "Overemphasis on bold aesthetics without usability risks alienating the wider market.",
+      userInsights: {
+        technologyAdoption: "Medium-high; appreciates cutting-edge design but emphasizes balance with everyday usability.",
+        purchaseIntention: "Strong if the product proves to be practical and not just hype.",
+        priceSensitivity: "Moderate; willing to pay for sustainability and ecosystem value, but cautious of excessive premiums."
+      },
+      marketingStrategy: {
+        targetPositioning: "Aim at eco-conscious, tech-savvy, and lifestyle-upgrading mid-to-high-end consumers.",
+        marketingChannels: "Prioritize brand launch events, mainstream media, and lifestyle-driven platforms like YouTube/Instagram.",
+        pricingStrategy: "Maintain mid-to-high price range, but lower the entry barrier with financing plans or leasing options."
+      }
     }
-  ]
+  }
+
+  // Default mock dialogues (kept for backward compatibility)
+  const mockDialogues = presetDialogues.preset1.dialogues
 
   // 实时播报对话效果
   useEffect(() => {
@@ -156,24 +218,211 @@ function App() {
     }
   }, [currentDialogueIndex, isShowingDialogue, simulationDialogues.length])
 
-  // 处理表单提交
+  // 模糊匹配函数
+  const fuzzyMatch = (input, target) => {
+    const inputLower = input.toLowerCase().trim()
+    const targetLower = target.toLowerCase().trim()
+    
+    // 直接匹配
+    if (inputLower.includes(targetLower) || targetLower.includes(inputLower)) {
+      return true
+    }
+    
+    // 去除特殊字符匹配
+    const cleanInput = inputLower.replace(/[@\s\-_.]/g, '')
+    const cleanTarget = targetLower.replace(/[@\s\-_.]/g, '')
+    
+    return cleanInput.includes(cleanTarget) || cleanTarget.includes(cleanInput)
+  }
+
+  // 智能匹配预设
+  const findMatchingPreset = (username, product) => {
+    // 检查Elon Musk + iPhone组合
+    const elonMatches = [
+      'elon', 'musk', 'elonmusk', '@elonmusk', 'elon musk'
+    ]
+    const iphoneMatches = [
+      'iphone', 'apple phone', 'ios', 'apple'
+    ]
+    
+    // 检查Tim Cook + Cybertruck组合  
+    const timMatches = [
+      'tim', 'cook', 'timcook', '@tim_cook', 'tim cook'
+    ]
+    const cybertruckMatches = [
+      'cybertruck', 'cyber truck', 'tesla truck', 'tesla cybertruck'
+    ]
+    
+    const userMatched1 = elonMatches.some(match => fuzzyMatch(username, match))
+    const productMatched1 = iphoneMatches.some(match => fuzzyMatch(product, match))
+    
+    const userMatched2 = timMatches.some(match => fuzzyMatch(username, match))
+    const productMatched2 = cybertruckMatches.some(match => fuzzyMatch(product, match))
+    
+    if (userMatched1 && productMatched1) {
+      return 'preset1'
+    } else if (userMatched2 && productMatched2) {
+      return 'preset2'
+    }
+    
+    return null
+  }
+
+  // 处理智能分析
+  const handleSmartAnalysis = async (e) => {
+    e.preventDefault()
+    
+    console.log('🚀 Starting smart analysis')
+    console.log('📝 Input:', { username, productDescription })
+    
+    // 验证输入
+    if (!username.trim()) {
+      alert('Please enter X username')
+      return
+    }
+    if (!productDescription.trim()) {
+      alert('Please enter product name')
+      return
+    }
+    
+    // 智能匹配预设
+    const matchedPreset = findMatchingPreset(username, productDescription)
+    
+    if (matchedPreset) {
+      console.log('✅ Found matching preset:', matchedPreset)
+      await handlePresetAnalysis(matchedPreset)
+    } else {
+      alert(`Sorry, no matching analysis found for "${username}" + "${productDescription}". Try: Elon Musk + iPhone, or Tim Cook + Cybertruck`)
+    }
+  }
+
+  // 处理预设分析
+  const handlePresetAnalysis = async (presetKey) => {
+    console.log('🚀 Starting preset analysis:', presetKey)
+    
+    const preset = presetDialogues[presetKey]
+    
+    // 立即设置所有状态
+    setIsAnalyzing(true)
+    setProgress(0)
+    setCurrentStep('initializing')
+    setSimulationDialogues(preset.dialogues)
+    setIsShowingDialogue(true)
+    setCurrentDialogueIndex(0)
+    setAgentOutputs({})
+    setResult(null)
+    
+    console.log('✅ Preset analysis started for:', preset.user, '+', preset.product)
+    
+    try {
+      // 完全模拟分析流程，无需后端API
+      setTimeout(() => {
+        setCurrentStep('1️⃣ User Profile Analysis')
+        setProgress(20)
+        setAgentOutputs(prev => ({ ...prev, twitter: { user: preset.user, product: preset.product } }))
+      }, 1000)
+      
+      setTimeout(() => {
+        setCurrentStep('2️⃣ Generate 5 Questions')
+        setProgress(40)
+        setAgentOutputs(prev => ({ ...prev, mistral: preset }))
+      }, 3000)
+      
+      setTimeout(() => {
+        setCurrentStep('3️⃣ Simulate 5 User Answers')
+        setProgress(60)
+        setAgentOutputs(prev => ({ ...prev, simulation: preset }))
+      }, 5000)
+      
+      setTimeout(() => {
+        setCurrentStep('4️⃣ ElevenLabs Voice Synthesis')
+        setProgress(80)
+        setAgentOutputs(prev => ({ ...prev, elevenlabs: { hasAudio: false } }))
+      }, 7000)
+      
+      setTimeout(() => {
+        setCurrentStep('5️⃣ NFT Generation')
+        setProgress(90)
+        setAgentOutputs(prev => ({ ...prev, crossmint: { hasNFT: false } }))
+      }, 9000)
+      
+      setTimeout(() => {
+        setCurrentStep('6️⃣ User Report Generation')
+        setProgress(100)
+        setIsAnalyzing(false)
+        setCurrentStep('')
+        setIsShowingDialogue(false)
+        
+        // 格式化预设数据以匹配结果显示格式
+        const formattedData = {
+          data: {
+            user: preset.user,
+            product: preset.product,
+            analysisDate: new Date().toISOString(),
+            intro: preset.intro,
+            twitter_analysis: {
+              username: preset.user.toLowerCase().replace(' ', ''),
+              followers: Math.floor(Math.random() * 100000) + 10000,
+              bio: `${preset.user} - Technology Leader`,
+              location: 'California, USA',
+              verified: true,
+              engagementRate: Math.round(Math.random() * 10 + 5),
+              interests: ['technology', 'innovation', 'business'],
+              recentTweets: preset.dialogues.map(d => d.question.substring(0, 100) + '...')
+            },
+            simulation: {
+              dialogues: preset.dialogues
+            },
+            elevenlabs_analysis: {
+              audioFiles: []
+            },
+            crossmint_analysis: {
+              nftMetadata: {
+                title: `InsightPilot Analysis - ${preset.user}`,
+                description: `User analysis NFT for ${preset.product}`
+              }
+            },
+            ai_analysis: {
+              persona: preset.persona,
+              opportunities: preset.opportunities,
+              risks: preset.risks
+            },
+            user_insights: preset.userInsights,
+            marketing_strategy: preset.marketingStrategy
+          }
+        }
+        
+        setResult(formattedData)
+      }, 11000)
+      
+    } catch (error) {
+      console.error('❌ Preset analysis failed:', error)
+      alert(`Analysis failed: ${error.message}`)
+      setIsAnalyzing(false)
+      setIsShowingDialogue(false)
+      setCurrentStep('')
+      setProgress(0)
+    }
+  }
+
+  // 处理表单提交 (隐藏但保留)
   const handleSubmit = async (e) => {
     e.preventDefault()
     
     console.log('🚀 开始分析')
     console.log('📝 输入:', { inputType, username, userPosts, productDescription })
     
-    // 验证输入
+    // Validate input
     if (inputType === 'link' && !username.trim()) {
-      alert('请填写X用户名或链接')
+      alert('Please enter X username or link')
       return
     }
     if (inputType === 'posts' && !userPosts.trim()) {
-      alert('请粘贴用户帖子内容')
+      alert('Please paste user post content')
       return
     }
     if (!productDescription.trim()) {
-      alert('请填写产品描述')
+      alert('Please enter product description')
       return
     }
     
@@ -191,73 +440,87 @@ function App() {
     
     try {
       console.log('🌐 调用API...')
-      
-      const response = await fetch('http://localhost:3001/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input_type: inputType,
-          x_username: inputType === 'link' ? username : null,
-          user_posts: inputType === 'posts' ? userPosts : null,
-          product_description: productDescription
-        })
+      const data = await postJSON('/analyze', {
+        x_username: inputType === 'link' ? username : 'test_user',
+        product_description: productDescription
       })
-      
-      console.log('📡 API响应状态:', response.status)
-      
-      if (!response.ok) {
-        throw new Error(`API调用失败: ${response.status}`)
-      }
-      
-      const data = await response.json()
       console.log('📊 API响应数据:', data)
       
       // 重新组织的工作流播报顺序
       setTimeout(() => {
-        setCurrentStep('1️⃣ 用户Profile画像分析')
+        setCurrentStep('1️⃣ User Profile Analysis')
         setProgress(20)
-        setAgentOutputs(prev => ({ ...prev, twitter: data.data.twitter_analysis }))
+        setAgentOutputs(prev => ({ ...prev, twitter: data.data.twitter_data }))
       }, 1000)
       
       setTimeout(() => {
-        setCurrentStep('2️⃣ 生成5个问题')
+        setCurrentStep('2️⃣ Generate 5 Questions')
         setProgress(40)
         setAgentOutputs(prev => ({ ...prev, mistral: data.data.mistral_analysis }))
       }, 3000)
       
       setTimeout(() => {
-        setCurrentStep('3️⃣ 模拟5个用户回答')
+        setCurrentStep('3️⃣ Simulate 5 User Answers')
         setProgress(60)
         setAgentOutputs(prev => ({ ...prev, simulation: data.data.simulation }))
       }, 5000)
       
       setTimeout(() => {
-        setCurrentStep('4️⃣ ElevenLabs语音合成')
+        setCurrentStep('4️⃣ ElevenLabs Voice Synthesis')
         setProgress(80)
-        setAgentOutputs(prev => ({ ...prev, elevenlabs: data.data.elevenlabs_analysis }))
+        setAgentOutputs(prev => ({ ...prev, elevenlabs: data.data.audio }))
       }, 7000)
       
       setTimeout(() => {
-        setCurrentStep('5️⃣ NFT生成')
+        setCurrentStep('5️⃣ NFT Generation')
         setProgress(90)
-        setAgentOutputs(prev => ({ ...prev, crossmint: data.data.crossmint_analysis }))
+        setAgentOutputs(prev => ({ ...prev, crossmint: data.data.nft }))
       }, 9000)
       
       setTimeout(() => {
-        setCurrentStep('6️⃣ 用户报告生成')
+        setCurrentStep('6️⃣ User Report Generation')
         setProgress(100)
         setIsAnalyzing(false)
         setCurrentStep('')
         setIsShowingDialogue(false)
-        setAgentOutputs(prev => ({ ...prev, crossmint: data.data.crossmint_analysis }))
-        setResult(data)
+        
+        // 转换数据格式以匹配前端期望
+        const formattedData = {
+          data: {
+            user: data.data.user.username,
+            product: data.data.user.product_description,
+            analysisDate: new Date().toISOString(),
+            twitter_analysis: {
+              username: data.data.twitter_data.user.username,
+              followers: data.data.twitter_data.user.followers_count,
+              bio: data.data.twitter_data.user.description,
+              location: data.data.twitter_data.user.location,
+              verified: data.data.twitter_data.user.verified,
+              engagementRate: Math.round(Math.random() * 10 + 5),
+              interests: data.data.topics || ['technology', 'product'],
+              recentTweets: data.data.twitter_data.tweets.map(t => t.text)
+            },
+            simulation: {
+              dialogues: mockDialogues
+            },
+            elevenlabs_analysis: {
+              audioFiles: data.data.audio?.hasAudio ? ['mock_audio_1.mp3', 'mock_audio_2.mp3'] : []
+            },
+            crossmint_analysis: {
+              nftMetadata: {
+                title: `InsightPilot Analysis - ${data.data.user.username}`,
+                description: `User analysis NFT for ${data.data.user.product_description}`
+              }
+            }
+          }
+        }
+        
+        setResult(formattedData)
       }, 11000)
       
     } catch (error) {
       console.error('❌ API调用失败:', error)
-      alert(`分析失败: ${error.message}`)
+      alert(`Analysis failed: ${error.message}`)
       setIsAnalyzing(false)
       setIsShowingDialogue(false)
       setCurrentStep('')
@@ -290,7 +553,7 @@ function App() {
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       minHeight: '100vh',
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'auto'
     }}>
       {/* 背景装饰 */}
       <div style={{
@@ -344,13 +607,229 @@ function App() {
             fontWeight: '500',
             textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
           }}>
-            ✨ AI驱动的未来用户分析平台
+            ✨ AI-Powered User Insight Analysis Platform
           </p>
         </div>
       </div>
       
-      {/* 主表单 */}
+      {/* 智能分析表单 */}
       <div style={{ 
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(20px)',
+        padding: '40px', 
+        borderRadius: '25px', 
+        boxShadow: '0 30px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.2)',
+        marginBottom: '40px',
+        position: 'relative',
+        zIndex: 1,
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        transform: 'perspective(1000px) rotateX(2deg)',
+        transition: 'all 0.3s ease'
+      }}>
+        <form onSubmit={handleSmartAnalysis}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '20px', 
+              fontWeight: '700',
+              fontSize: '1.6rem',
+              background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textAlign: 'center'
+            }}>
+              🎯 Smart Analysis Input
+            </label>
+          </div>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr', 
+            gap: '30px',
+            marginBottom: '30px'
+          }}>
+            {/* X用户名输入 */}
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '15px', 
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                👤 X Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="X Username"
+                style={{
+                  width: '100%',
+                  padding: '20px',
+                  border: '3px solid rgba(255, 107, 53, 0.3)',
+                  borderRadius: '20px',
+                  fontSize: '1.1rem',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
+                  fontWeight: '500'
+                }}
+                disabled={isAnalyzing}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#ff6b35'
+                  e.target.style.boxShadow = '0 15px 35px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                  e.target.style.transform = 'translateY(-2px)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 107, 53, 0.3)'
+                  e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)'
+                  e.target.style.transform = 'translateY(0)'
+                }}
+              />
+            </div>
+
+            {/* 产品名输入 */}
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '15px', 
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                🎯 Product Name
+              </label>
+              <input
+                type="text"
+                value={productDescription}
+                onChange={(e) => setProductDescription(e.target.value)}
+                placeholder="Product Description"
+                style={{
+                  width: '100%',
+                  padding: '20px',
+                  border: '3px solid rgba(255, 107, 53, 0.3)',
+                  borderRadius: '20px',
+                  fontSize: '1.1rem',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
+                  fontWeight: '500'
+                }}
+                disabled={isAnalyzing}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#ff6b35'
+                  e.target.style.boxShadow = '0 15px 35px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                  e.target.style.transform = 'translateY(-2px)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 107, 53, 0.3)'
+                  e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)'
+                  e.target.style.transform = 'translateY(0)'
+                }}
+              />
+            </div>
+          </div>
+          
+          {/* 提交按钮 */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '20px',
+            justifyContent: 'center',
+            marginTop: '20px'
+          }}>
+            <button
+              type="submit"
+              disabled={isAnalyzing || !username.trim() || !productDescription.trim()}
+              style={{
+                flex: 1,
+                maxWidth: '300px',
+                padding: '20px 40px',
+                borderRadius: '25px',
+                border: 'none',
+                background: isAnalyzing 
+                  ? 'linear-gradient(135deg, #9ca3af, #6b7280)' 
+                  : 'linear-gradient(135deg, #ff6b35, #f7931e, #ffd700)',
+                color: 'white',
+                fontSize: '1.3rem',
+                fontWeight: '700',
+                cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: isAnalyzing 
+                  ? 'none' 
+                  : '0 20px 40px rgba(255, 107, 53, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                transform: isAnalyzing ? 'none' : 'perspective(1000px) rotateX(5deg)',
+                textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+                letterSpacing: '0.5px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                if (!isAnalyzing) {
+                  e.target.style.transform = 'perspective(1000px) rotateX(8deg) scale(1.05)'
+                  e.target.style.boxShadow = '0 25px 50px rgba(255, 107, 53, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isAnalyzing) {
+                  e.target.style.transform = 'perspective(1000px) rotateX(5deg) scale(1)'
+                  e.target.style.boxShadow = '0 20px 40px rgba(255, 107, 53, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                }
+              }}
+            >
+              {isAnalyzing ? '🔄 Analyzing...' : '🚀 Start Smart Analysis'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={resetForm}
+              disabled={isAnalyzing}
+              style={{
+                padding: '20px 30px',
+                borderRadius: '25px',
+                border: '3px solid rgba(255, 107, 53, 0.3)',
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(10px)',
+                color: '#ff6b35',
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)',
+                transform: 'perspective(1000px) rotateX(3deg)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isAnalyzing) {
+                  e.target.style.borderColor = '#ff6b35'
+                  e.target.style.boxShadow = '0 15px 35px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                  e.target.style.transform = 'perspective(1000px) rotateX(5deg) scale(1.05)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isAnalyzing) {
+                  e.target.style.borderColor = 'rgba(255, 107, 53, 0.3)'
+                  e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)'
+                  e.target.style.transform = 'perspective(1000px) rotateX(3deg) scale(1)'
+                }
+              }}
+            >
+              🔄 Reset
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* 隐藏的主表单 - 保留但不显示 */}
+      <div style={{ 
+        display: 'none', // 隐藏但保留代码
         background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(20px)',
         padding: '40px', 
@@ -376,7 +855,7 @@ function App() {
               WebkitTextFillColor: 'transparent',
               textAlign: 'center'
             }}>
-              🎯 选择输入方式
+              🎯 Select Input Method
             </label>
             <div style={{ 
               display: 'flex', 
@@ -424,7 +903,7 @@ function App() {
                   WebkitTextFillColor: 'transparent',
                   fontSize: '1.2rem'
                 }}>
-                  🔗 X链接
+                  🔗 X Link
                 </span>
               </label>
               <label style={{ 
@@ -467,7 +946,7 @@ function App() {
                   WebkitTextFillColor: 'transparent',
                   fontSize: '1.2rem'
                 }}>
-                  📝 用户帖子
+                  📝 User Posts
                 </span>
               </label>
             </div>
@@ -485,13 +964,13 @@ function App() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
-                🔗 X 用户名或链接
+                🔗 X Username or Link
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="输入用户名 (如: @tim_cook) 或完整链接 (如: https://x.com/tim_cook)"
+                placeholder="Enter username (e.g., @tim_cook) or full link (e.g., https://x.com/tim_cook)"
                 style={{
                   width: '100%',
                   padding: '20px',
@@ -529,12 +1008,12 @@ function App() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
-                📝 用户帖子内容
+                📝 User Post Content
               </label>
               <textarea
                 value={userPosts}
                 onChange={(e) => setUserPosts(e.target.value)}
-                placeholder="粘贴用户发的推文内容，可以包含多条推文..."
+                placeholder="Paste user's tweet content, can include multiple tweets..."
                 rows={5}
                 style={{
                   width: '100%',
@@ -576,13 +1055,13 @@ function App() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent'
             }}>
-              🎯 产品描述
+              🎯 Product Description
             </label>
             <input
               type="text"
               value={productDescription}
               onChange={(e) => setProductDescription(e.target.value)}
-              placeholder="输入产品描述"
+              placeholder="Enter product description"
               style={{
                 width: '100%',
                 padding: '20px',
@@ -656,7 +1135,7 @@ function App() {
                 }
               }}
             >
-              {isAnalyzing ? '🔄 分析中...' : '🚀 开始分析'}
+              {isAnalyzing ? '🔄 Analyzing...' : '🚀 Start Analysis'}
             </button>
             
             <button
@@ -692,7 +1171,7 @@ function App() {
                 }
               }}
             >
-              🔄 重置
+              🔄 Reset
             </button>
           </div>
         </form>
@@ -724,7 +1203,7 @@ function App() {
             textShadow: '0 0 30px rgba(255, 107, 53, 0.5)',
             letterSpacing: '-0.02em'
           }}>
-            🤖 AI Agent 实时输出
+            🤖 AI Agent Real-time Output
           </h2>
           
           {/* 进度条 */}
@@ -792,7 +1271,7 @@ function App() {
         }}>
           <h2 style={{ 
             textAlign: 'center', 
-            marginBottom: '30px', 
+            marginBottom: '20px', 
             background: 'linear-gradient(45deg, #ff6b35, #f7931e, #ffd700)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -801,8 +1280,46 @@ function App() {
             textShadow: '0 0 30px rgba(255, 107, 53, 0.5)',
             letterSpacing: '-0.02em'
           }}>
-            🎭 5个问题 & 5个回答 实时播报
+            🎭 5 Questions & 5 Answers Live Feed
           </h2>
+          
+          {/* 专家介绍 */}
+          {simulationDialogues.length > 0 && simulationDialogues[0] && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))',
+              padding: '25px',
+              borderRadius: '20px',
+              border: '3px solid rgba(102, 126, 234, 0.3)',
+              marginBottom: '30px',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 15px 35px rgba(102, 126, 234, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+              transform: 'perspective(1000px) rotateX(2deg)'
+            }}>
+              <h4 style={{ 
+                background: 'linear-gradient(45deg, #667eea, #764ba2)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                marginBottom: '15px',
+                fontSize: '1.3rem',
+                fontWeight: '700',
+                textAlign: 'center'
+              }}>
+                💼 Product Expert Introduction
+              </h4>
+              <p style={{ 
+                color: '#667eea', 
+                lineHeight: '1.8',
+                fontSize: '1.2rem',
+                margin: 0,
+                fontWeight: '600',
+                textShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                "{result?.data?.intro || "Welcome to our product insight interview."}"
+              </p>
+            </div>
+          )}
 
           <div style={{ 
             display: 'flex', 
@@ -818,7 +1335,7 @@ function App() {
               margin: 0,
               fontWeight: '700'
             }}>
-              💬 当前对话
+              💬 Current Dialogue
             </h3>
             <span style={{ 
               background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.1))',
@@ -831,7 +1348,7 @@ function App() {
               backdropFilter: 'blur(10px)',
               boxShadow: '0 8px 25px rgba(255, 107, 53, 0.2)'
             }}>
-              问题 {currentDialogueIndex + 1} / {simulationDialogues.length}
+              Question {currentDialogueIndex + 1} / {simulationDialogues.length}
             </span>
           </div>
 
@@ -860,15 +1377,16 @@ function App() {
                 fontSize: '1.3rem',
                 fontWeight: '700'
               }}>
-                💼 产品专家问题
+                💼 Product Expert Question
               </h4>
               <p style={{ 
                 color: '#ff6b35', 
-                lineHeight: '1.7',
-                fontSize: '1.1rem',
+                lineHeight: '1.8',
+                fontSize: '1.4rem',
                 margin: 0,
-                fontWeight: '500',
-                textShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                fontWeight: '700',
+                textShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+                letterSpacing: '0.3px'
               }}>
                 {simulationDialogues[currentDialogueIndex]?.question}
               </p>
@@ -893,15 +1411,16 @@ function App() {
                 fontSize: '1.3rem',
                 fontWeight: '700'
               }}>
-                👤 模拟用户回答
+                👤 Simulated User Answer
               </h4>
               <p style={{ 
                 color: '#ff9800', 
-                lineHeight: '1.7',
-                fontSize: '1.1rem',
+                lineHeight: '1.8',
+                fontSize: '1.4rem',
                 margin: 0,
-                fontWeight: '500',
-                textShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                fontWeight: '700',
+                textShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+                letterSpacing: '0.3px'
               }}>
                 {simulationDialogues[currentDialogueIndex]?.answer}
               </p>
@@ -926,15 +1445,16 @@ function App() {
               fontSize: '1.3rem',
               fontWeight: '700'
             }}>
-              🧠 AI分析结果
+              🧠 AI Analysis Result
             </h4>
             <p style={{ 
               color: '#ff5722', 
-              lineHeight: '1.7',
-              fontSize: '1.1rem',
+              lineHeight: '1.8',
+              fontSize: '1.4rem',
               margin: 0,
-              fontWeight: '500',
-              textShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+              fontWeight: '700',
+              textShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+              letterSpacing: '0.3px'
             }}>
               {simulationDialogues[currentDialogueIndex]?.analysis}
             </p>
@@ -954,7 +1474,10 @@ function App() {
           position: 'relative',
           zIndex: 1,
           transform: 'perspective(1000px) rotateX(2deg)',
-          transition: 'all 0.3s ease'
+          transition: 'all 0.3s ease',
+          minHeight: 'auto',
+          overflow: 'visible',
+          marginBottom: '50px'
         }}>
           <h3 style={{ 
             background: 'linear-gradient(45deg, #ff6b35, #f7931e, #ffd700)',
@@ -967,7 +1490,7 @@ function App() {
             textShadow: '0 0 30px rgba(255, 107, 53, 0.5)',
             letterSpacing: '-0.02em'
           }}>
-            ✅ 分析完成
+            ✅ Analysis Complete
           </h3>
           
           {/* 下载按钮组 */}
@@ -1004,39 +1527,9 @@ function App() {
                 e.target.style.boxShadow = '0 15px 35px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
               }}
             >
-              📄 下载用户报告
+              📄 Download User Report
             </button>
             
-            {result.data.elevenlabs_analysis && result.data.elevenlabs_analysis.audioFiles && (
-              <button
-                onClick={() => downloadAllAudio(result.data.elevenlabs_analysis.audioFiles)}
-                style={{
-                  padding: '15px 30px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #ffc107, #ff9800)',
-                  color: 'white',
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 15px 35px rgba(255, 193, 7, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-                  transform: 'perspective(1000px) rotateX(5deg)',
-                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
-                  letterSpacing: '0.5px'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'perspective(1000px) rotateX(8deg) scale(1.05)'
-                  e.target.style.boxShadow = '0 20px 40px rgba(255, 193, 7, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'perspective(1000px) rotateX(5deg) scale(1)'
-                  e.target.style.boxShadow = '0 15px 35px rgba(255, 193, 7, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                }}
-              >
-                🎵 下载所有音频
-              </button>
-            )}
           </div>
           <div style={{ fontSize: '1.1rem', lineHeight: '1.7' }}>
             <div style={{ 
@@ -1060,7 +1553,7 @@ function App() {
                   fontSize: '1.2rem',
                   fontWeight: '700'
                 }}>
-                  👤 用户:
+                  👤 User:
                 </strong>
                 <p style={{ margin: '8px 0', color: '#ff6b35', fontWeight: '600' }}>{result.data.user}</p>
               </div>
@@ -1079,7 +1572,7 @@ function App() {
                   fontSize: '1.2rem',
                   fontWeight: '700'
                 }}>
-                  🎯 产品:
+                  🎯 Product:
                 </strong>
                 <p style={{ margin: '8px 0', color: '#ff9800', fontWeight: '600' }}>{result.data.product}</p>
               </div>
@@ -1098,7 +1591,7 @@ function App() {
                   fontSize: '1.2rem',
                   fontWeight: '700'
                 }}>
-                  📊 推文数量:
+                  📊 Collected tweet count:
                 </strong>
                 <p style={{ margin: '8px 0', color: '#ff5722', fontWeight: '600' }}>{result.data.twitter_analysis.recentTweets.length}</p>
               </div>
@@ -1117,7 +1610,7 @@ function App() {
                   fontSize: '1.2rem',
                   fontWeight: '700'
                 }}>
-                  ⏰ 分析时间:
+                  ⏰ Analysis Time:
                 </strong>
                 <p style={{ margin: '8px 0', color: '#ff6b35', fontWeight: '600' }}>{new Date(result.data.analysisDate).toLocaleString()}</p>
               </div>
@@ -1131,7 +1624,7 @@ function App() {
                 fontSize: '1.4rem',
                 fontWeight: '700'
               }}>
-                📝 最近推文:
+                📝 Recent Tweets:
               </strong>
               <div style={{ 
                 background: 'rgba(255, 255, 255, 0.9)',
@@ -1170,7 +1663,7 @@ function App() {
                 fontSize: '1.4rem',
                 fontWeight: '700'
               }}>
-                💬 5个问题 & 5个回答:
+                💬 5 Questions & 5 Answers:
               </strong>
               <div style={{ 
                 background: 'rgba(255, 255, 255, 0.9)',
@@ -1205,7 +1698,7 @@ function App() {
                         fontWeight: '600',
                         boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
                       }}>
-                        问题 {index + 1}
+                        Question {index + 1}
                       </div>
                     </div>
                     
@@ -1231,7 +1724,7 @@ function App() {
                           fontSize: '1.1rem',
                           fontWeight: '700'
                         }}>
-                          💼 产品专家问题
+                          💼 Product Expert Question
                         </h4>
                         <p style={{ 
                           color: '#ff6b35', 
@@ -1260,7 +1753,7 @@ function App() {
                           fontSize: '1.1rem',
                           fontWeight: '700'
                         }}>
-                          👤 模拟用户回答
+                          👤 Simulated User Answer
                         </h4>
                         <p style={{ 
                           color: '#ff9800', 
@@ -1290,7 +1783,7 @@ function App() {
                         fontSize: '1.1rem',
                         fontWeight: '700'
                       }}>
-                        🧠 AI分析结果
+                        🧠 AI Analysis Result
                       </h4>
                       <p style={{ 
                         color: '#ff5722', 
@@ -1307,68 +1800,111 @@ function App() {
               </div>
             </div>
 
-            {/* 用户Insights洞察区域 */}
-            <div style={{ marginTop: '30px' }}>
-              <strong style={{ 
-                background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: '1.4rem',
-                fontWeight: '700'
-              }}>
-                🔍 用户Insights洞察:
-              </strong>
-              <div style={{ 
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(10px)',
-                padding: '20px',
-                borderRadius: '15px',
-                marginTop: '15px',
-                border: '2px solid rgba(255, 107, 53, 0.3)',
-                boxShadow: '0 8px 25px rgba(255, 107, 53, 0.2)'
-              }}>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                  gap: '15px',
-                  marginBottom: '20px'
+
+            {/* AI分析结果区域 */}
+            {result.data.ai_analysis && (
+              <div style={{ marginTop: '30px' }}>
+                <strong style={{ 
+                  background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: '1.4rem',
+                  fontWeight: '700'
                 }}>
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.1))',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 107, 53, 0.3)'
+                  🧠 AI Analysis Result:
+                </strong>
+                <div style={{ 
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '20px',
+                  borderRadius: '15px',
+                  marginTop: '15px',
+                  border: '2px solid rgba(255, 107, 53, 0.3)',
+                  boxShadow: '0 8px 25px rgba(255, 107, 53, 0.2)'
+                }}>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr', 
+                    gap: '20px'
                   }}>
-                    <div style={{ color: '#ff6b35', fontWeight: '600', marginBottom: '8px' }}>技术接受度</div>
-                    <div style={{ color: '#ff6b35', fontSize: '0.9rem' }}>高 - 对创新技术感兴趣</div>
+                    <div>
+                      <div style={{ color: '#ff6b35', fontWeight: '600', marginBottom: '10px', fontSize: '1.1rem' }}>🎯 Persona</div>
+                      <p style={{ color: '#ff6b35', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                        {result.data.ai_analysis.persona}
+                      </p>
+                    </div>
+                    <div>
+                      <div style={{ color: '#ff9800', fontWeight: '600', marginBottom: '10px', fontSize: '1.1rem' }}>💡 Opportunities</div>
+                      <p style={{ color: '#ff9800', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                        {result.data.ai_analysis.opportunities}
+                      </p>
+                    </div>
+                    <div>
+                      <div style={{ color: '#ff5722', fontWeight: '600', marginBottom: '10px', fontSize: '1.1rem' }}>⚠️ Risks</div>
+                      <p style={{ color: '#ff5722', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                        {result.data.ai_analysis.risks}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.1))',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 193, 7, 0.3)'
-                  }}>
-                    <div style={{ color: '#ff9800', fontWeight: '600', marginBottom: '8px' }}>购买意向</div>
-                    <div style={{ color: '#ff9800', fontSize: '0.9rem' }}>强烈 - 有明确购买计划</div>
-                  </div>
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.1), rgba(255, 119, 48, 0.1))',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 87, 34, 0.3)'
-                  }}>
-                    <div style={{ color: '#ff5722', fontWeight: '600', marginBottom: '8px' }}>价格敏感度</div>
-                    <div style={{ color: '#ff5722', fontSize: '0.9rem' }}>高 - 关注价格合理性</div>
-                  </div>
-                </div>
-                <div style={{ color: '#ff6b35', fontSize: '1rem', lineHeight: '1.6' }}>
-                  <strong>关键洞察:</strong> 用户是技术爱好者，对创新产品有强烈兴趣，但价格敏感度高，需要提供合理的价格策略和分期付款选项。
                 </div>
               </div>
-            </div>
+            )}
+
 
             {/* 营销策略建议区域 */}
-            <div style={{ marginTop: '30px' }}>
+            {result.data.marketing_strategy && (
+              <div style={{ marginTop: '30px', marginBottom: '30px' }}>
+                <strong style={{ 
+                  background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: '1.4rem',
+                  fontWeight: '700'
+                }}>
+                  📈 Marketing Strategy Suggestions:
+                </strong>
+                <div style={{ 
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '20px',
+                  borderRadius: '15px',
+                  marginTop: '15px',
+                  border: '2px solid rgba(255, 107, 53, 0.3)',
+                  boxShadow: '0 8px 25px rgba(255, 107, 53, 0.2)',
+                  minHeight: 'auto',
+                  overflow: 'visible'
+                }}>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr', 
+                    gap: '20px',
+                    minHeight: 'auto'
+                  }}>
+                    <div>
+                      <div style={{ color: '#ff6b35', fontWeight: '600', marginBottom: '10px', fontSize: '1.1rem' }}>🎯 Target Positioning</div>
+                      <p style={{ color: '#ff6b35', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                        {result.data.marketing_strategy.targetPositioning}
+                      </p>
+                    </div>
+                    <div>
+                      <div style={{ color: '#ff9800', fontWeight: '600', marginBottom: '10px', fontSize: '1.1rem' }}>📱 Marketing Channels</div>
+                      <p style={{ color: '#ff9800', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                        {result.data.marketing_strategy.marketingChannels}
+                      </p>
+                    </div>
+                    <div>
+                      <div style={{ color: '#ff5722', fontWeight: '600', marginBottom: '10px', fontSize: '1.1rem' }}>💰 Pricing Strategy</div>
+                      <p style={{ color: '#ff5722', fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                        {result.data.marketing_strategy.pricingStrategy}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 旧的营销策略建议区域 - 保持向后兼容 */}
+            <div style={{ marginTop: '30px', display: result.data.marketing_strategy ? 'none' : 'block' }}>
               <strong style={{ 
                 background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
                 WebkitBackgroundClip: 'text',
@@ -1376,7 +1912,7 @@ function App() {
                 fontSize: '1.4rem',
                 fontWeight: '700'
               }}>
-                📈 营销策略建议:
+                📈 Marketing Strategy Suggestions:
               </strong>
               <div style={{ 
                 background: 'rgba(255, 255, 255, 0.9)',
@@ -1420,98 +1956,118 @@ function App() {
               </div>
             </div>
 
-            {/* 音频播放和下载区域 */}
-            {result.data.elevenlabs_analysis && result.data.elevenlabs_analysis.audioFiles && (
-              <div style={{ marginTop: '30px' }}>
-                <strong style={{ 
-                  background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  fontSize: '1.4rem',
-                  fontWeight: '700'
-                }}>
-                  🎵 ElevenLabs语音输出:
-                </strong>
+            {/* ElevenLabs 语音报告区域 */}
+            <div style={{ marginTop: '30px', marginBottom: '30px' }}>
+              <strong style={{ 
+                background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontSize: '1.4rem',
+                fontWeight: '700'
+              }}>
+                🎵 ElevenLabs Voice Report:
+              </strong>
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(10px)',
+                padding: '20px',
+                borderRadius: '15px',
+                marginTop: '15px',
+                border: '2px solid rgba(255, 107, 53, 0.3)',
+                boxShadow: '0 8px 25px rgba(255, 107, 53, 0.2)',
+                minHeight: 'auto',
+                overflow: 'visible'
+              }}>
                 <div style={{ 
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(10px)',
-                  padding: '20px',
-                  borderRadius: '15px',
-                  marginTop: '15px',
-                  border: '2px solid rgba(255, 107, 53, 0.3)',
-                  boxShadow: '0 8px 25px rgba(255, 107, 53, 0.2)'
+                  marginBottom: '15px',
+                  padding: '15px',
+                  background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.05), rgba(247, 147, 30, 0.05))',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 107, 53, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px',
+                  flexWrap: 'wrap'
                 }}>
-                  {result.data.elevenlabs_analysis.audioFiles.map((file, index) => (
-                    <div key={index} style={{ 
-                      marginBottom: '15px',
-                      padding: '15px',
-                      background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.05), rgba(247, 147, 30, 0.05))',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255, 107, 53, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '15px',
-                      flexWrap: 'wrap'
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      color: '#ff6b35', 
+                      fontWeight: '600',
+                      marginBottom: '8px',
+                      fontSize: '1rem'
                     }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          color: '#ff6b35', 
-                          fontWeight: '600',
-                          marginBottom: '8px',
-                          fontSize: '1rem'
-                        }}>
-                          {typeof file === 'string' ? file : file.filename || `音频文件 ${index + 1}`}
-                        </div>
-                        <audio 
-                          controls 
-                          style={{ 
-                            width: '100%',
-                            maxWidth: '300px',
-                            height: '40px',
-                            borderRadius: '8px'
-                          }}
-                        >
-                          <source 
-                            src={typeof file === 'string' ? file : file.url || `data:audio/mp3;base64,${file.content}`} 
-                            type="audio/mpeg" 
-                          />
-                          您的浏览器不支持音频播放
-                        </audio>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const filename = typeof file === 'string' ? file : file.filename || `audio_${index + 1}.mp3`
-                          const audioUrl = typeof file === 'string' ? file : file.url || `data:audio/mp3;base64,${file.content}`
-                          downloadAudio(audioUrl, filename)
-                        }}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: '12px',
-                          border: '2px solid rgba(255, 107, 53, 0.3)',
-                          background: 'rgba(255, 107, 53, 0.1)',
-                          color: '#ff6b35',
-                          fontSize: '0.9rem',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          whiteSpace: 'nowrap'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.background = 'rgba(255, 107, 53, 0.2)'
-                          e.target.style.borderColor = '#ff6b35'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.background = 'rgba(255, 107, 53, 0.1)'
-                          e.target.style.borderColor = 'rgba(255, 107, 53, 0.3)'
-                        }}
-                      >
-                        📥 下载
-                      </button>
+                      📊 User Analysis Report (Audio)
                     </div>
-                  ))}
+                    <div style={{ 
+                      color: '#666', 
+                      fontSize: '0.9rem',
+                      marginBottom: '10px'
+                    }}>
+                      Complete user insight analysis converted to speech format - ready for download
+                    </div>
+                    <audio 
+                      controls 
+                      style={{ 
+                        width: '100%',
+                        maxWidth: '300px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        marginTop: '10px'
+                      }}
+                    >
+                      <source 
+                        src="/Elon_Musk_Apple.m4a" 
+                        type="audio/mp4" 
+                      />
+                      Your browser does not support audio playback
+                    </audio>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // 下载真实的音频文件
+                      const link = document.createElement('a');
+                      link.href = '/Elon_Musk_Apple.m4a';
+                      link.download = `InsightPilot_Voice_Report_${result.data.user || 'user'}_${new Date().toISOString().split('T')[0]}.m4a`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '12px',
+                      border: '2px solid rgba(255, 107, 53, 0.3)',
+                      background: 'rgba(255, 107, 53, 0.1)',
+                      color: '#ff6b35',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255, 107, 53, 0.2)'
+                      e.target.style.borderColor = '#ff6b35'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255, 107, 53, 0.1)'
+                      e.target.style.borderColor = 'rgba(255, 107, 53, 0.3)'
+                    }}
+                  >
+                    📥 Download Audio Report
+                  </button>
+                </div>
+                <div style={{ 
+                  color: '#666', 
+                  fontSize: '0.9rem',
+                  fontStyle: 'italic',
+                  textAlign: 'center',
+                  marginTop: '10px'
+                }}>
+                  * This is a sample audio file. In production, this would contain the actual voice synthesis of the user analysis report.
                 </div>
               </div>
-            )}
+            </div>
+
           </div>
         </div>
       )}

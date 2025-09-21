@@ -1,6 +1,7 @@
 // backend/src/server.js - 精简可用版本
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 // 导入智能体
@@ -17,6 +18,10 @@ const port = process.env.PORT || 3001;
 // 中间件 - 最简配置
 app.use(cors()); // 允许所有来源访问（开发环境）
 app.use(express.json()); // 解析JSON请求体
+
+// 静态托管前端构建产物（生产/预览统一由后端托管）
+const staticDir = path.resolve(__dirname, '../../frontend/dist');
+app.use(express.static(staticDir));
 
 // 健康检查端点
 app.get('/api/health', (req, res) => {
@@ -67,6 +72,7 @@ app.post('/api/analyze', async (req, res) => {
         // 使用 Mistral AI 生成用户画像和访谈问题
         console.log(`🧠 Generating persona and questions with Mistral AI...`);
         let mistralAnalysis;
+        let mistralUsedMock = false;
         try {
           // 准备用户数据文本
           const userDataText = `
@@ -88,6 +94,7 @@ app.post('/api/analyze', async (req, res) => {
         } catch (error) {
           console.warn('⚠️  Mistral AI failed, using mock data:', error.message);
           mistralAnalysis = getMockAnalysis(userAnalysis.data, product_description);
+          mistralUsedMock = true;
         }
 
         // 发送用户画像生成进度更新
@@ -121,6 +128,7 @@ app.post('/api/analyze', async (req, res) => {
         // 智能生成语音
         console.log(`🎤 Generating intelligent voice synthesis...`);
         let audioResult;
+        let elevenLabsUsedMock = false;
         try {
           const voiceConfig = selectIntelligentVoice(mistralAnalysis.persona);
           audioResult = await generateInterviewAudio(mistralAnalysis.interviewQuestions, voiceConfig);
@@ -128,6 +136,7 @@ app.post('/api/analyze', async (req, res) => {
         } catch (error) {
           console.warn('⚠️  ElevenLabs failed, skipping voice synthesis:', error.message);
           audioResult = null;
+          elevenLabsUsedMock = true; // 视为未调用或失败，按mock处理
         }
 
         // 发送语音合成进度更新
@@ -136,6 +145,7 @@ app.post('/api/analyze', async (req, res) => {
         // NFT 铸造 - 价值闭环
         console.log(`🎯 Minting InsightPilot NFT...`);
         let nftResult;
+        let crossmintUsedMock = false;
         try {
           const reportData = {
             username: x_username,
@@ -149,16 +159,27 @@ app.post('/api/analyze', async (req, res) => {
           // 使用默认邮箱进行测试（实际应用中应该从请求中获取）
           const recipientEmail = 'insightpilot@example.com';
           nftResult = await mintInsightNFTSmart(recipientEmail, reportData);
+          crossmintUsedMock = !!nftResult?.isMock;
           console.log(`✅ NFT minted successfully: ${nftResult.nftId}`);
         } catch (error) {
           console.warn('⚠️  NFT minting failed, continuing without NFT:', error.message);
           nftResult = null;
+          crossmintUsedMock = true;
         }
 
         // 发送 NFT 铸造进度更新
         await updateProgress('nft-minting', nftResult);
 
         // 返回完整的分析结果
+        // 记录 Agent 使用模式
+        const agentModes = {
+          twitter: userAnalysis?.source === 'twitter_api' ? 'api' : (userAnalysis?.source === 'web_scraping' ? 'api' : 'mock'),
+          mistral: mistralUsedMock ? 'mock' : 'api',
+          elevenlabs: elevenLabsUsedMock ? 'mock' : (audioResult ? 'api' : 'mock'),
+          crossmint: crossmintUsedMock ? 'mock' : 'api',
+          coral: 'api'
+        };
+
         return {
           success: true,
           data: {
@@ -192,6 +213,7 @@ app.post('/api/analyze', async (req, res) => {
               hasNFT: false,
               reason: 'NFT minting failed or skipped'
             },
+            agent_modes: agentModes,
             analysis_status: {
               twitter_analysis: 'completed',
               mistral_analysis: 'completed',
@@ -431,4 +453,14 @@ app.on('error', (err) => {
 
 process.on('uncaughtException', (err) => {
   console.error('❌ 未捕获异常:', err);
+});
+
+// SPA 回退：将非 /api 路由回退到前端 index.html（需放在路由末尾）
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  try {
+    return res.sendFile(path.join(staticDir, 'index.html'));
+  } catch (e) {
+    return res.status(404).end();
+  }
 });

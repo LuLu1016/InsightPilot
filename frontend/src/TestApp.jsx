@@ -1,5 +1,6 @@
 // TestApp.jsx - 简化的测试应用
 import React, { useState } from 'react'
+import { postJSON } from './api/client'
 
 function TestApp() {
   const [username, setUsername] = useState('')
@@ -19,24 +20,10 @@ function TestApp() {
     try {
       console.log('📝 用户输入:', { username, productDescription })
       
-      const response = await fetch('http://localhost:3001/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          x_username: username,
-          product_description: productDescription
-        })
+      const data = await postJSON('/analyze', {
+        x_username: username,
+        product_description: productDescription
       })
-      
-      console.log('📡 API响应状态:', response.status)
-      
-      if (!response.ok) {
-        throw new Error(`API调用失败: ${response.status}`)
-      }
-      
-      const data = await response.json()
       console.log('📊 API响应数据:', data)
       
       setResults(data)
