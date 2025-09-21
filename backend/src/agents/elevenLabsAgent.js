@@ -1,5 +1,20 @@
 // backend/src/agents/elevenLabsAgent.js
 const axios = require('axios');
+function decodeErrorPayload(err) {
+  try {
+    const data = err?.response?.data;
+    if (!data) return null;
+    if (Buffer.isBuffer(data)) {
+      const text = data.toString('utf8');
+      try { return JSON.parse(text); } catch { return { message: text }; }
+    }
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch { return { message: data }; }
+    }
+    if (typeof data === 'object') return data;
+    return null;
+  } catch { return null; }
+}
 
 // 配置 - 从环境变量获取API密钥
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -75,13 +90,19 @@ function selectIntelligentVoice(personaSummary) {
  */
 async function generateSpeech(text, voiceConfig = VOICE_PRESETS.RACHEL) {
   try {
+    if (!ELEVENLABS_API_KEY) {
+      throw new Error('ElevenLabs API密钥未设置 (缺少 ELEVENLABS_API_KEY)');
+    }
+    // 可选：限制文本长度以降低配额消耗（ELEVENLABS_MAX_CHARS）
+    const maxChars = parseInt(process.env.ELEVENLABS_MAX_CHARS || '0', 10);
+    const payloadText = maxChars > 0 && text.length > maxChars ? text.slice(0, maxChars) : text;
     console.log(`[ElevenLabs Agent] Generating speech with voice: ${voiceConfig.description}`);
-    console.log('[ElevenLabs Agent] Text length:', text.length, 'characters');
+    console.log('[ElevenLabs Agent] Text length:', payloadText.length, 'characters');
 
     const response = await axios.post(
       `${BASE_URL}/text-to-speech/${voiceConfig.id}`,
       {
-        text: text,
+        text: payloadText,
         model_id: 'eleven_monolingual_v1',
         voice_settings: {
           stability: 0.5,    // 声音稳定性 (0-1)
@@ -105,22 +126,45 @@ async function generateSpeech(text, voiceConfig = VOICE_PRESETS.RACHEL) {
     return {
       audioBuffer: Buffer.from(response.data),
       voiceUsed: voiceConfig,
-      textLength: text.length
+      textLength: payloadText.length
     };
 
   } catch (error) {
-    console.error('[ElevenLabs Agent] API Error:', error.response?.data || error.message);
-    
-    // 提供详细的错误信息
-    if (error.response?.status === 401) {
-      throw new Error('ElevenLabs API密钥无效或未设置');
-    } else if (error.response?.status === 429) {
-      throw new Error('ElevenLabs API限额已用完，请检查账户');
-    } else if (error.code === 'ECONNABORTED') {
+    const decoded = decodeErrorPayload(error);
+    console.error('[ElevenLabs Agent] API Error:', decoded || error.message);
+    const status = error.response?.status;
+    const detail = decoded && decoded.detail ? decoded.detail : null;
+    const detailStatus = typeof detail?.status === 'string' ? detail.status : '';
+    const detailMessage = typeof detail?.message === 'string' ? detail.message : (typeof decoded?.message === 'string' ? decoded.message : '');
+    const isQuota = status === 402 || detailStatus === 'quota_exceeded' || /payment|quota|insufficient|expired/i.test(detailMessage || '');
+
+    if (isQuota) {
+      throw new Error('ElevenLabs 额度或套餐不足（payment/quota），请检查账户');
+    }
+    if (status === 401 || /invalid.*api.*key/i.test(detailMessage || '')) {
+      throw new Error('ElevenLabs API密钥无效，请检查 ELEVENLABS_API_KEY');
+    }
+    if (status === 403) {
+      throw new Error('ElevenLabs 拒绝访问（403），请检查权限或模型可用性');
+    }
+    if (status === 429 || /rate.?limit|too many/i.test(detailMessage)) {
+      throw new Error('ElevenLabs 触发限流（429），请稍后重试');
+    }
+    if (error.code === 'ECONNABORTED') {
       throw new Error('ElevenLabs API请求超时，请检查网络连接');
     }
-    
-    throw new Error(`语音生成失败: ${error.message}`);
+    // 开发环境可选降级为 mock（不阻断端到端流程）
+    if (String(process.env.ELEVENLABS_FALLBACK_ON_ERROR || 'false').toLowerCase() === 'true') {
+      console.warn('[ElevenLabs Agent] Falling back to mock speech due to error');
+      return {
+        audioBuffer: Buffer.from(''),
+        voiceUsed: voiceConfig,
+        textLength: (typeof payloadText === 'string' ? payloadText.length : 0),
+        isMock: true,
+        fallbackReason: detailMessage || error.message
+      };
+    }
+    throw new Error(`语音生成失败: ${detailMessage || error.message}`);
   }
 }
 

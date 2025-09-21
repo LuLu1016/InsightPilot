@@ -12,18 +12,23 @@ async function conductSimulatedInterview(personaSummary, productDescription) {
   try {
     console.log('[ProductExpert Agent] Starting simulated interview...');
 
-    // 1. 生成关键问题
+    // 1. 生成关键问题（与 Mistral json_object 输出格式对齐）
     const questionsPrompt = `
-As a seasoned product expert, generate 3-5 of the most critical questions a business should ask this user profile about their product.
+As a seasoned product expert, generate 3-5 of the most critical interview questions a business should ask this user profile about their product.
 
 User Profile: ${personaSummary}
 Product: ${productDescription}
 
-Output ONLY a JSON array of questions: ["question1", "question2", "question3", "question4", "question5"]
+Output JSON strictly in the following object format:
+{ "questions": ["question1", "question2", "question3", "question4", "question5"] }
     `;
 
-    const questionsArray = await analyzeWithMistral(questionsPrompt);
-    const questions = JSON.parse(questionsArray);
+    const questionsJson = await analyzeWithMistral(questionsPrompt);
+    const parsedQuestions = JSON.parse(questionsJson);
+    const questions = Array.isArray(parsedQuestions?.questions) ? parsedQuestions.questions : [];
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new Error('Failed to generate questions from Mistral');
+    }
 
     console.log('[ProductExpert Agent] Generated questions:', questions);
 
@@ -116,7 +121,7 @@ async function analyzeResponse(question, answer, productDescription) {
 Analyze this Q&A pair for product insights.
 
 Question: ${question}
-Answer: ${answer}
+Answer: ${typeof answer === 'string' ? answer : (answer?.answer ? answer.answer : JSON.stringify(answer))}
 Product: ${productDescription}
 
 Provide 1-2 sentence analysis of what this reveals about user needs. 
@@ -289,10 +294,23 @@ async function conductSimulatedInterviewSmart(personaSummary, productDescription
   }
 }
 
+/**
+ * 严格模式：强制使用真实 Mistral，不允许降级为 mock
+ * @param {string} personaSummary
+ * @param {string} productDescription
+ */
+async function conductSimulatedInterviewStrict(personaSummary, productDescription) {
+  if (!process.env.MISTRAL_API_KEY) {
+    throw new Error('MISTRAL_API_KEY 未设置，无法进行真实对话模拟');
+  }
+  return await conductSimulatedInterview(personaSummary, productDescription);
+}
+
 module.exports = { 
   conductSimulatedInterview, 
   conductSimulatedInterviewMock, 
   conductSimulatedInterviewSmart,
+  conductSimulatedInterviewStrict,
   generatePersonalizedQuestions,
   generateComparativeReport,
   simulateUserResponse,

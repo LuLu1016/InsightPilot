@@ -1,10 +1,13 @@
 // backend/src/agents/coralAgent.js
 const axios = require('axios');
+const { createCoralSession } = require('./coralSessionClient');
 
 // Coral Server 配置
-const CORAL_SERVER_URL = process.env.CORAL_SERVER_URL || 'http://localhost:5555';
+const CORAL_SERVER_URL = process.env.CORAL_SERVER_URL || 'http://localhost:8000';
 const CORAL_AGENT_ID = 'insightpilot-agent';
 const CORAL_AGENT_NAME = 'InsightPilot Analysis Agent';
+const CORAL_USE_SESSIONS = String(process.env.CORAL_USE_SESSIONS || 'false').toLowerCase() === 'true';
+const CORAL_REQUIRED = String(process.env.CORAL_REQUIRED || 'false').toLowerCase() === 'true';
 
 /**
  * Coral Agent - 基于 MCP 协议的智能体协调
@@ -16,6 +19,7 @@ class CoralAgent {
     this.agentId = CORAL_AGENT_ID;
     this.agentName = CORAL_AGENT_NAME;
     this.isRegistered = false;
+    this.sessionId = null;
   }
 
   /**
@@ -112,7 +116,8 @@ class CoralAgent {
         messageType: 'analysis-update',
         metadata: {
           stage,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          sessionId: this.sessionId || undefined
         }
       };
 
@@ -225,10 +230,36 @@ class CoralAgent {
         uptime: response.data.uptime || 'unknown'
       };
     } catch (error) {
-      return {
-        status: 'offline',
-        error: error.message
-      };
+      // 尝试使用 Sessions API 作为在线性探测
+      if (CORAL_USE_SESSIONS) {
+        try {
+          const session = await createCoralSession();
+          this.sessionId = session.sessionId || null;
+          return {
+            status: 'online',
+            version: 'unknown',
+            uptime: 'unknown'
+          };
+        } catch (e) {
+          const offline = {
+            status: 'offline',
+            error: e.message || error.message
+          };
+          if (CORAL_REQUIRED) {
+            throw new Error('[Coral Agent] Coral Server offline and CORAL_REQUIRED=true');
+          }
+          return offline;
+        }
+      } else {
+        const offline = {
+          status: 'offline',
+          error: error.message
+        };
+        if (CORAL_REQUIRED) {
+          throw new Error('[Coral Agent] Coral Server offline and CORAL_REQUIRED=true');
+        }
+        return offline;
+      }
     }
   }
 }
@@ -261,7 +292,20 @@ async function createCoralAgent() {
   const status = await agent.checkServerStatus();
   
   if (status.status === 'online') {
-    console.log('[Coral Agent] Coral Server is online, using real coordination');
+    console.log('[Coral Agent] Coral Server is online');
+    if (CORAL_USE_SESSIONS) {
+      try {
+        const session = await createCoralSession();
+        agent.sessionId = session.sessionId || null;
+        console.log(`[Coral Agent] Created Coral session: ${agent.sessionId || 'unknown'}`);
+      } catch (e) {
+        if (CORAL_REQUIRED) {
+          throw new Error(`[Coral Agent] Failed to create Coral session and CORAL_REQUIRED=true: ${e.message}`);
+        }
+        console.warn('[Coral Agent] Failed to create Coral session:', e.message);
+      }
+    }
+    console.log('[Coral Agent] Using real coordination');
     return agent;
   } else {
     console.log('[Coral Agent] Coral Server is offline, using mock coordination');

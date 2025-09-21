@@ -10,6 +10,7 @@ const { generateInterviewAudio, selectIntelligentVoice } = require('./agents/ele
 const { mintInsightNFTSmart } = require('./agents/crossmintAgent');
 const { conductSimulatedInterviewSmart, generatePersonalizedQuestions, generateComparativeReport } = require('./agents/productExpertAgent');
 const { createCoralAgent } = require('./agents/coralAgent');
+const { createCoralSession } = require('./agents/coralSessionClient');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -40,6 +41,23 @@ app.post('/api/analyze', async (req, res) => {
         success: false,
         error: 'Missing required parameters: x_username and product_description'
       });
+    }
+
+    // 可选：先创建 Coral 会话（官方会话范式）
+    const useSessions = String(process.env.CORAL_USE_SESSIONS || 'false').toLowerCase() === 'true';
+    let coralSessionId = null;
+    if (useSessions) {
+      try {
+        const session = await createCoralSession();
+        coralSessionId = session.sessionId || null;
+        console.log(`[Coral] Session created: ${coralSessionId || 'unknown'}`);
+      } catch (e) {
+        const coralRequired = String(process.env.CORAL_REQUIRED || 'false').toLowerCase() === 'true';
+        if (coralRequired) {
+          throw new Error(`Coral session creation failed and CORAL_REQUIRED=true: ${e.message}`);
+        }
+        console.warn('[Coral] Session creation failed:', e.message);
+      }
     }
 
     // 创建 Coral Agent 进行协调
@@ -163,6 +181,7 @@ app.post('/api/analyze', async (req, res) => {
           success: true,
           data: {
             request_id: Date.now(),
+            coralSessionId: coralSessionId,
             user: {
               username: x_username,
               product_description: product_description
