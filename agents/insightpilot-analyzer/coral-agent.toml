@@ -1,0 +1,23 @@
+[agent]
+name = "insightpilot-analyzer"
+version = "0.0.1"
+
+[options.MISTRAL_API_KEY]
+type = "string"
+description = "Mistral API key"
+
+[options.ELEVENLABS_API_KEY]
+type = "string"
+description = "ElevenLabs API key (optional)"
+
+[options.CROSSMINT_PROJECT_ID]
+type = "string"
+description = "Crossmint project id (optional)"
+
+[options.CROSSMINT_CLIENT_SECRET]
+type = "secret"
+description = "Crossmint client secret (optional)"
+
+[runtimes.executable]
+command = ["node", "run.js"]
+

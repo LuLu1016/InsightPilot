@@ -1,0 +1,52 @@
+{
+  "applicationId": "insightpilot-demo",
+  "privacyKey": "demo",
+  "agentGraphRequest": {
+    "agents": [
+      {
+        "id": {
+          "name": "insightpilot-analyzer",
+          "version": "0.0.1"
+        },
+        "name": "analyzer",
+        "description": "InsightPilot analyzer",
+        "options": {
+          "MISTRAL_API_KEY": {
+            "type": "string",
+            "value": "demo-xxxxx"
+          },
+          "ELEVENLABS_API_KEY": {
+            "type": "string",
+            "value": "demo-xxxxx"
+          },
+          "CROSSMINT_PROJECT_ID": {
+            "type": "string",
+            "value": "demo-xxxxx"
+          },
+          "CROSSMINT_CLIENT_SECRET": {
+            "type": "secret",
+            "value": "demo-xxxxx"
+          }
+        },
+        "systemPrompt": "You analyze X(Twitter) user data and produce profile+questions+insights.",
+        "blocking": false,
+        "customToolAccess": [],
+        "coralPlugins": [
+          {
+            "type": "close_session_tool"
+          }
+        ],
+        "provider": {
+          "type": "local",
+          "runtime": "executable"
+        }
+      }
+    ],
+    "groups": [
+      [
+        "analyzer"
+      ]
+    ],
+    "customTools": {}
+  }
+}
